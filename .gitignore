@@ -1,0 +1,22 @@
+# Node dependencies
+node_modules/
+
+# Build and cache
+dist/
+*.log
+
+# Models and audio files
+backend/model/
+backend/models/
+backend/uploads/
+backend/*.wav
+backend/*.zip
+backend/*.txt
+backend/*.srt
+backend/*.vtt
+backend/*.tsv
+backend/*.json
+
+# Environment variables
+.env
+
