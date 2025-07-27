@@ -5,7 +5,7 @@ node_modules/
 dist/
 *.log
 
-# Models and audio files
+# Models and uploads
 backend/model/
 backend/models/
 backend/uploads/
@@ -15,7 +15,11 @@ backend/*.txt
 backend/*.srt
 backend/*.vtt
 backend/*.tsv
+
+# Ignore all JSON except package files
 backend/*.json
+!backend/package.json
+!backend/package-lock.json
 
 # Environment variables
 .env
