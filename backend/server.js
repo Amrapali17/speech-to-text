@@ -31,6 +31,17 @@ app.get('/', (req, res) => {
   res.send('Speech-to-Text Backend is running ✅');
 });
 
+// Debug route to verify Vosk installation
+app.get('/check-vosk', (req, res) => {
+  exec('python3 -c "import vosk; print(vosk.__version__)"', (err, stdout, stderr) => {
+    if (err) {
+      res.status(500).send(`Vosk NOT found: ${stderr || err.message}`);
+    } else {
+      res.send(`Vosk is installed. Version: ${stdout.trim()}`);
+    }
+  });
+});
+
 // Upload + convert + transcribe
 app.post('/upload', upload.single('audio'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -41,7 +52,6 @@ app.post('/upload', upload.single('audio'), (req, res) => {
 
   console.log(`🎤 Received: ${audioPath} | Language: ${language}`);
 
-  // Convert to 16kHz mono WAV for Vosk
   exec(`"${ffmpegPath}" -y -i "${audioPath}" -ac 1 -ar 16000 -c:a pcm_s16le "${wavPath}"`, (ffmpegErr, stdout, stderr) => {
     if (ffmpegErr) {
       console.error('❌ FFmpeg error:', stderr);
@@ -50,7 +60,6 @@ app.post('/upload', upload.single('audio'), (req, res) => {
 
     console.log(`🔊 Converted file ready: ${wavPath}`);
 
-    // Call Python Vosk script
     exec(`python3 transcribe.py "${wavPath}" "${language}"`, async (pyErr, stdout, stderr) => {
       if (pyErr) {
         console.error('❌ Transcription error:', stderr);
@@ -69,7 +78,6 @@ app.post('/upload', upload.single('audio'), (req, res) => {
 
       res.json({ text: transcription || 'No text detected' });
 
-      // Clean up temp files
       [audioPath, wavPath].forEach((f) => fs.existsSync(f) && fs.unlinkSync(f));
     });
   });
