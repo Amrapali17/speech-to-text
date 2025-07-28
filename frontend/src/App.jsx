@@ -11,7 +11,6 @@ import {
   FiCopy,
   FiSearch,
 } from "react-icons/fi";
-import { supabase } from "./supabaseClient";
 
 function App() {
   const [file, setFile] = useState(null);
@@ -37,22 +36,18 @@ function App() {
   const timerRef = useRef(null);
   const transcriberRef = useRef(null);
 
+  // Fetch transcripts history from backend
   useEffect(() => {
-    const savedTranscript = localStorage.getItem("lastTranscript");
-    if (savedTranscript) setTranscription(savedTranscript);
     fetchHistory();
   }, []);
 
-  useEffect(() => {
-    if (transcription) localStorage.setItem("lastTranscript", transcription);
-  }, [transcription]);
-
   const fetchHistory = async () => {
-    const { data, error } = await supabase
-      .from("transcripts")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (!error && data) setHistory(data);
+    try {
+      const res = await axios.get("https://speech-to-text-tgh8.onrender.com/transcripts");
+      setHistory(res.data);
+    } catch (err) {
+      console.error("History fetch error:", err);
+    }
   };
 
   const confirmDelete = (id) => setShowConfirmDelete(id);
@@ -60,12 +55,12 @@ function App() {
   const deleteTranscript = async () => {
     const id = showConfirmDelete;
     setShowConfirmDelete(null);
-    const { error } = await supabase.from("transcripts").delete().eq("id", id);
-    if (!error) {
+    try {
+      await axios.delete(`https://speech-to-text-tgh8.onrender.com/transcripts/${id}`);
       showToast("Transcript deleted!", "success");
       fetchHistory();
-    } else {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
       showToast("Failed to delete transcript", "error");
     }
   };
@@ -100,7 +95,7 @@ function App() {
     formData.append("language", selectedLanguage);
 
     try {
-      const res = await axios.post("http://localhost:5000/upload", formData, {
+      const res = await axios.post("https://speech-to-text-tgh8.onrender.com/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
         onUploadProgress: (e) => {
           const p = Math.round((e.loaded * 100) / e.total);
@@ -112,17 +107,8 @@ function App() {
       setTranscription(text);
       showToast("Transcription completed!", "success");
 
-      const { error: supabaseError } = await supabase
-        .from("transcripts")
-        .insert([{ transcription: text, language: selectedLanguage }]);
-
-      if (supabaseError) {
-        console.error("Supabase insert error:", supabaseError);
-        showToast("Failed to save to database.", "error");
-      } else {
-        fetchHistory();
-        showToast("Transcription saved!", "success");
-      }
+      // History reload (backend already saves it)
+      fetchHistory();
     } catch (err) {
       console.error("Transcription error:", err);
       setError("Failed to transcribe audio.");
@@ -143,15 +129,12 @@ function App() {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
 
-      mediaRecorderRef.current.onstop = async () => {
+      mediaRecorderRef.current.onstop = () => {
         clearInterval(timerRef.current);
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         const audioFile = new File([audioBlob], "recording.webm", { type: "audio/webm" });
         setFile(audioFile);
         setAudioURL(URL.createObjectURL(audioBlob));
-
-        showToast("Recording stopped. Transcribing...", "info");
-        await handleUpload(); // Auto-transcribe
       };
 
       mediaRecorderRef.current.start();
@@ -172,6 +155,7 @@ function App() {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       clearInterval(timerRef.current);
+      showToast("Recording stopped", "info");
     }
   };
 
@@ -236,7 +220,6 @@ function App() {
     setAudioURL(null);
     setTranscription("");
     setError("");
-    localStorage.removeItem("lastTranscript");
     showToast("Cleared all", "info");
   };
 
@@ -246,7 +229,8 @@ function App() {
     return `${m}:${s}`;
   };
 
-  const scrollToTranscriber = () => transcriberRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToTranscriber = () =>
+    transcriberRef.current?.scrollIntoView({ behavior: "smooth" });
 
   const filteredHistory = history.filter((item) =>
     item.transcription.toLowerCase().includes(searchQuery.toLowerCase())
@@ -276,7 +260,13 @@ function App() {
           <button onClick={scrollToTranscriber} className="hover:text-blue-500 transition">
             Home
           </button>
-          <button onClick={() => setShowHistory(true)} className="hover:text-blue-500 transition">
+          <button
+            onClick={() => {
+              fetchHistory();
+              setShowHistory(true);
+            }}
+            className="hover:text-blue-500 transition"
+          >
             History
           </button>
           <select
@@ -296,7 +286,7 @@ function App() {
         </div>
       </nav>
 
-      {/* Toasts */}
+      {/* Toast Notifications */}
       <div className="fixed top-20 right-4 space-y-3 z-50">
         {toasts.map((toast) => (
           <div
@@ -382,20 +372,18 @@ function App() {
           </div>
         )}
 
-        {!isRecording && file && (
-          <button
-            onClick={handleUpload}
-            className="bg-[#00796B] hover:bg-green-800 text-white text-2xl font-bold px-12 py-5 rounded-full shadow-xl transition-transform transform hover:scale-110 mb-6 flex items-center gap-3"
-          >
-            <FiUpload /> Transcribe Audio
-          </button>
-        )}
+        <button
+          onClick={handleUpload}
+          className="bg-[#00796B] hover:bg-green-800 text-white text-2xl font-bold px-12 py-5 rounded-full shadow-xl transition-transform transform hover:scale-110 mb-6 flex items-center gap-3"
+        >
+          <FiUpload /> Transcribe Audio
+        </button>
 
         {error && <p className="text-red-600 text-xl mt-4">{error}</p>}
 
         {transcription && (
           <div
-            className="w-full max-w-4xl flex-1 overflow-y-auto border border-gray-300 rounded-2xl shadow-inner p-6 mt-6 animate-fade-in"
+            className="w-full max-w-4xl flex-1 overflow-y-auto border border-gray-300 rounded-2xl shadow-inner p-6 mt-6"
             style={{ backgroundColor: darkMode ? "#374151" : "#F7FBFD" }}
           >
             <h2 className="text-3xl font-bold mb-4">Transcription:</h2>
@@ -424,6 +412,7 @@ function App() {
         )}
       </div>
 
+      {/* History Drawer */}
       {showHistory && (
         <>
           <div
@@ -431,7 +420,7 @@ function App() {
             onClick={() => setShowHistory(false)}
           ></div>
           <div
-            className={`fixed top-0 right-0 h-full w-96 z-50 shadow-2xl border-l transition-transform animate-slide-in ${
+            className={`fixed top-0 right-0 h-full w-96 z-50 shadow-2xl border-l ${
               darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-800"
             }`}
           >
@@ -473,14 +462,14 @@ function App() {
                       </div>
                       <button
                         onClick={() => confirmDelete(item.id)}
-                        className="text-red-500 hover:text-red-700"
+                        className="text-red-600 hover:text-red-800"
                       >
                         <FiTrash2 />
                       </button>
                     </div>
                   ))
                 ) : (
-                  <p className="text-center text-gray-500">No transcripts found</p>
+                  <p className="text-gray-500">No transcripts found.</p>
                 )}
               </div>
             </div>
@@ -488,31 +477,27 @@ function App() {
         </>
       )}
 
+      {/* Confirm Delete Modal */}
       {showConfirmDelete && (
-        <>
-          <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm z-40"></div>
-          <div
-            className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 p-6 rounded-lg shadow-xl w-96 ${
-              darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-800"
-            }`}
-          >
-            <h3 className="text-lg font-bold mb-4">Delete this transcript?</h3>
-            <div className="flex justify-end gap-4">
-              <button
-                onClick={() => setShowConfirmDelete(null)}
-                className="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded"
-              >
-                Cancel
-              </button>
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className={`p-6 rounded-lg shadow-lg ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+            <h2 className="text-xl font-bold mb-4">Delete Transcript?</h2>
+            <div className="flex gap-4">
               <button
                 onClick={deleteTranscript}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded"
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
               >
                 Delete
               </button>
+              <button
+                onClick={() => setShowConfirmDelete(null)}
+                className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
