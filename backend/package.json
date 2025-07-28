@@ -4,7 +4,7 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "build": "../render-build.sh",
+    "build": "pip3 install -r requirements.txt && ../render-build.sh",
     "postinstall": "node download-model.js",
     "start": "node download-model.js && node server.js"
   },
