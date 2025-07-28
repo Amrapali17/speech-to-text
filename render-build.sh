@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # This script runs on Render before your app starts.
 
-# Update system packages and install ffmpeg + python
+# Update packages
 apt-get update && apt-get install -y ffmpeg python3 python3-pip
 
-# Install all Python dependencies from our requirements.txt
-pip3 install -r backend/requirements.txt
+# Always reinstall Python packages (ignore cache)
+pip3 install --no-cache-dir -r backend/requirements.txt
 
