@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # This script runs on Render before your app starts.
 
-# Update packages
+# Update system packages and install ffmpeg + python
 apt-get update && apt-get install -y ffmpeg python3 python3-pip
 
-# Install Python packages (vosk + soundfile for transcription)
-pip3 install vosk soundfile
+# Install all Python dependencies from our requirements.txt
+pip3 install -r backend/requirements.txt
 
