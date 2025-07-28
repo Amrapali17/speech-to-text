@@ -143,12 +143,15 @@ function App() {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
 
-      mediaRecorderRef.current.onstop = () => {
+      mediaRecorderRef.current.onstop = async () => {
         clearInterval(timerRef.current);
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         const audioFile = new File([audioBlob], "recording.webm", { type: "audio/webm" });
         setFile(audioFile);
         setAudioURL(URL.createObjectURL(audioBlob));
+
+        showToast("Recording stopped. Transcribing...", "info");
+        await handleUpload(); // Auto-transcribe
       };
 
       mediaRecorderRef.current.start();
@@ -169,7 +172,6 @@ function App() {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       clearInterval(timerRef.current);
-      showToast("Recording stopped", "info");
     }
   };
 
@@ -294,7 +296,7 @@ function App() {
         </div>
       </nav>
 
-      {/* Toast notifications */}
+      {/* Toasts */}
       <div className="fixed top-20 right-4 space-y-3 z-50">
         {toasts.map((toast) => (
           <div
@@ -312,7 +314,7 @@ function App() {
         ))}
       </div>
 
-      {/* Main container */}
+      {/* Main Container */}
       <div
         ref={transcriberRef}
         className="w-[85%] h-[85vh] rounded-3xl shadow-2xl border flex flex-col items-center p-10 relative"
@@ -321,9 +323,7 @@ function App() {
         {isRecording && (
           <div className="absolute top-6 right-6 flex items-center gap-2">
             <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse"></div>
-            <span className="text-lg font-semibold">
-              Recording {formatTime(recordingTime)}
-            </span>
+            <span className="text-lg font-semibold">Recording {formatTime(recordingTime)}</span>
           </div>
         )}
 
@@ -382,12 +382,14 @@ function App() {
           </div>
         )}
 
-        <button
-          onClick={handleUpload}
-          className="bg-[#00796B] hover:bg-green-800 text-white text-2xl font-bold px-12 py-5 rounded-full shadow-xl transition-transform transform hover:scale-110 mb-6 flex items-center gap-3"
-        >
-          <FiUpload /> Transcribe Audio
-        </button>
+        {!isRecording && file && (
+          <button
+            onClick={handleUpload}
+            className="bg-[#00796B] hover:bg-green-800 text-white text-2xl font-bold px-12 py-5 rounded-full shadow-xl transition-transform transform hover:scale-110 mb-6 flex items-center gap-3"
+          >
+            <FiUpload /> Transcribe Audio
+          </button>
+        )}
 
         {error && <p className="text-red-600 text-xl mt-4">{error}</p>}
 
@@ -463,7 +465,6 @@ function App() {
                       }`}
                     >
                       <div>
-                        {/* Show FULL transcription now */}
                         <p className="text-lg">{item.transcription}</p>
                         <span className="text-sm text-gray-500">
                           {new Date(item.created_at).toLocaleString()} •{" "}
@@ -488,30 +489,30 @@ function App() {
       )}
 
       {showConfirmDelete && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
+        <>
+          <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm z-40"></div>
           <div
-            className={`p-6 rounded-lg shadow-xl w-96 ${
+            className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 p-6 rounded-lg shadow-xl w-96 ${
               darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-800"
             }`}
           >
-            <h3 className="text-xl font-bold mb-4">Delete Transcript?</h3>
-            <p className="mb-6 text-lg">This action cannot be undone.</p>
+            <h3 className="text-lg font-bold mb-4">Delete this transcript?</h3>
             <div className="flex justify-end gap-4">
               <button
                 onClick={() => setShowConfirmDelete(null)}
-                className="px-4 py-2 rounded bg-gray-500 hover:bg-gray-600 text-white"
+                className="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded"
               >
                 Cancel
               </button>
               <button
                 onClick={deleteTranscript}
-                className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded"
               >
                 Delete
               </button>
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

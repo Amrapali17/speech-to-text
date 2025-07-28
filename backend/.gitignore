@@ -1,0 +1,17 @@
+# Ignore dependencies
+node_modules/
+
+# Ignore uploads (we don't want to push temporary files)
+uploads/
+
+# Ignore audio and subtitles
+*.wav
+*.zip
+*.txt
+*.srt
+*.vtt
+*.tsv
+
+# Do NOT ignore models folder (we need it for deployment)
+# (Leave models tracked)
+

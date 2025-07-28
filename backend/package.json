@@ -1,15 +1,16 @@
 {
   "name": "speech-to-text-backend",
   "version": "1.0.0",
+  "type": "module", 
   "main": "server.js",
   "scripts": {
     "build": "../render-build.sh",
-    "start": "node server.js"
+    "postinstall": "node download-model.js", 
+    "start": "node download-model.js && node server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "cors": "^2.8.5",
-    "multer": "^1.4.5-lts.2",
-    "child_process": "^1.0.2"
+    "express": "^4.19.0",
+    "multer": "^1.4.5",
+    "cors": "^2.8.5"
   }
 }
