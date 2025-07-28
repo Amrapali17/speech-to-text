@@ -6,15 +6,21 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
+import fetch from 'node-fetch';
 
 // Fix __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(cors());
 
-// Initialize multer as an instance (not middleware yet)
+// Allow CORS for your frontend (or "*" for testing)
+app.use(cors({
+  origin: '*',  // Change to your frontend URL if you want it strict
+  methods: ['GET', 'POST'],
+}));
+
+// Multer setup
 const upload = multer({ dest: 'uploads/' });
 
 // Supabase setup
@@ -27,11 +33,9 @@ app.get('/', (req, res) => {
   res.send('Speech-to-Text Backend is running ✅');
 });
 
-// Upload endpoint (transcription)
+// Upload endpoint
 app.post('/upload', upload.single('audio'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   const audioPath = path.resolve(req.file.path);
   const wavPath = `${audioPath}.wav`;
@@ -39,7 +43,6 @@ app.post('/upload', upload.single('audio'), (req, res) => {
 
   console.log(`🎤 File uploaded: ${audioPath} | Language: ${language}`);
 
-  // Step 1: Convert audio to WAV mono 16kHz using ffmpeg
   exec(`ffmpeg -y -i "${audioPath}" -ar 16000 -ac 1 "${wavPath}"`, (ffmpegErr) => {
     if (ffmpegErr) {
       console.error('❌ FFmpeg conversion failed:', ffmpegErr);
@@ -48,7 +51,6 @@ app.post('/upload', upload.single('audio'), (req, res) => {
 
     console.log(`🔊 Converted to WAV: ${wavPath}`);
 
-    // Step 2: Run Python transcription
     exec(`python3 transcribe.py "${wavPath}" "${language}"`, async (pyErr, stdout, stderr) => {
       if (pyErr) {
         console.error('❌ Vosk transcription failed:', stderr);
@@ -58,26 +60,20 @@ app.post('/upload', upload.single('audio'), (req, res) => {
       const transcription = stdout.trim();
       console.log(`📝 Transcription [${language}]: ${transcription}`);
 
-      // Save to Supabase
       try {
         const { data: saved, error: dbError } = await supabase
           .from('transcripts')
           .insert([{ transcription, language }])
           .select();
 
-        if (dbError) {
-          console.error('❌ Error saving to Supabase:', dbError.message);
-        } else {
-          console.log('✅ Saved to Supabase:', saved);
-        }
+        if (dbError) console.error('❌ Error saving to Supabase:', dbError.message);
+        else console.log('✅ Saved to Supabase:', saved);
       } catch (err) {
         console.error('❌ Database insert error:', err.message);
       }
 
-      // Respond to client
       res.json({ text: transcription || 'No text detected' });
 
-      // Cleanup
       [audioPath, wavPath].forEach((file) => {
         if (fs.existsSync(file)) fs.unlinkSync(file);
       });
@@ -85,7 +81,7 @@ app.post('/upload', upload.single('audio'), (req, res) => {
   });
 });
 
-// Endpoint to fetch saved transcripts
+// Get transcripts
 app.get('/transcripts', async (req, res) => {
   const { data, error } = await supabase
     .from('transcripts')
@@ -96,6 +92,12 @@ app.get('/transcripts', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
+
+// Prevent Render from sleeping (ping every 14 minutes)
+const RENDER_URL = 'https://speech-to-text-tgh8.onrender.com';
+setInterval(() => {
+  fetch(RENDER_URL).then(() => console.log('🔄 Pinged Render to keep alive'));
+}, 14 * 60 * 1000);
 
 // Start server
 const PORT = process.env.PORT || 5000;
