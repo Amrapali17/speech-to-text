@@ -1,0 +1,24 @@
+# Node modules
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# dotenv environment variables file
+.env
+
+# Uploads folder (to avoid committing large/uploaded audio files)
+uploads/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Optional: lock files (if you want to ignore them)
+package-lock.json
+yarn.lock
+
