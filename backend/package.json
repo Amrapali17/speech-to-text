@@ -4,11 +4,10 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-  "build": "bash ./render-build.sh",
-  "postinstall": "node download-model.js",
-  "start": "node download-model.js && node server.js"
-},
-
+    "build": "bash ../render-build.sh",
+    "postinstall": "node download-model.js",
+    "start": "node download-model.js && node server.js"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.53.0",
     "cors": "^2.8.5",

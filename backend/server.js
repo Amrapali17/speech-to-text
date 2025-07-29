@@ -7,14 +7,13 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
-import ffmpegPath from 'ffmpeg-static'; // Use ffmpeg-static
+import ffmpegPath from 'ffmpeg-static';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const app = express();
 
-// Allow frontend (replace "*" with your frontend URL for security)
+// Allow frontend (change '*' to your frontend URL later for security)
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST'],
@@ -27,11 +26,12 @@ const supabaseUrl = 'https://qfefkrzxkqbwnudchbwr.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmZWZrcnp4a3Fid251ZGNoYndyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzNTYzMzEsImV4cCI6MjA2ODkzMjMzMX0.pOu76z96868RL9BQEbf7ZSOV08RJVxTRRRLI1GxjXpI';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Root
 app.get('/', (req, res) => {
   res.send('Speech-to-Text Backend is running ✅');
 });
 
-// Debug route to verify Vosk installation
+// Debug route for Vosk
 app.get('/check-vosk', (req, res) => {
   exec('python3 -c "import vosk; print(vosk.__version__)"', (err, stdout, stderr) => {
     if (err) {
@@ -42,7 +42,7 @@ app.get('/check-vosk', (req, res) => {
   });
 });
 
-// Upload + convert + transcribe
+// Upload + Convert + Transcribe
 app.post('/upload', upload.single('audio'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
@@ -52,6 +52,7 @@ app.post('/upload', upload.single('audio'), (req, res) => {
 
   console.log(`🎤 Received: ${audioPath} | Language: ${language}`);
 
+  // Convert to 16kHz mono WAV
   exec(`"${ffmpegPath}" -y -i "${audioPath}" -ac 1 -ar 16000 -c:a pcm_s16le "${wavPath}"`, (ffmpegErr, stdout, stderr) => {
     if (ffmpegErr) {
       console.error('❌ FFmpeg error:', stderr);
@@ -61,6 +62,8 @@ app.post('/upload', upload.single('audio'), (req, res) => {
     console.log(`🔊 Converted file ready: ${wavPath}`);
 
     exec(`python3 transcribe.py "${wavPath}" "${language}"`, async (pyErr, stdout, stderr) => {
+      [audioPath, wavPath].forEach(f => fs.existsSync(f) && fs.unlinkSync(f)); // Cleanup
+
       if (pyErr) {
         console.error('❌ Transcription error:', stderr);
         return res.status(500).json({ error: 'Transcription failed', details: stderr });
@@ -77,8 +80,6 @@ app.post('/upload', upload.single('audio'), (req, res) => {
       }
 
       res.json({ text: transcription || 'No text detected' });
-
-      [audioPath, wavPath].forEach((f) => fs.existsSync(f) && fs.unlinkSync(f));
     });
   });
 });

@@ -4,7 +4,7 @@ import json
 from vosk import Model, KaldiRecognizer
 import os
 
-# Map language codes to Vosk model paths (ensure these models exist)
+# Supported language models (make sure these are downloaded)
 LANGUAGE_MODELS = {
     "en-US": "models/vosk-model-small-en-us-0.15",
     "hi-IN": "models/vosk-model-small-hi-0.22",
@@ -12,27 +12,22 @@ LANGUAGE_MODELS = {
 }
 
 def transcribe(file_path, language="en-US"):
-    # Pick the model path (fallback to English if unsupported)
+    # Pick model path or default to English
     model_path = LANGUAGE_MODELS.get(language, LANGUAGE_MODELS["en-US"])
-
     if not os.path.exists(model_path):
-        print(f"Model for {language} not found at {model_path}. Defaulting to English.")
         model_path = LANGUAGE_MODELS["en-US"]
 
-    # Load Vosk model
     model = Model(model_path)
 
-    # Open the WAV file
     try:
         wf = wave.open(file_path, "rb")
     except FileNotFoundError:
-        print(f"Error: File '{file_path}' not found.")
-        return ""
+        print("", end="")  # Node will handle
+        return
 
     if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getframerate() != 16000:
-        print("Audio must be mono PCM WAV 16kHz. Convert it first with:")
-        print(f"ffmpeg -i {file_path} -ac 1 -ar 16000 converted.wav")
-        return ""
+        print("", end="")
+        return
 
     rec = KaldiRecognizer(model, wf.getframerate())
     rec.SetWords(True)
@@ -46,19 +41,12 @@ def transcribe(file_path, language="en-US"):
             results.append(json.loads(rec.Result()))
     results.append(json.loads(rec.FinalResult()))
 
-    # Combine all recognized text
     text = " ".join(r.get("text", "") for r in results if "text" in r).strip()
-
-    if text:
-        print("\n--- Transcription Result ---")
-        print(text)
-    else:
-        print("\n[No speech detected or could not recognize audio]")
-
+    print(text, end="")  # Output only transcript for Node
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 transcribe.py <audiofile.wav> [language]")
+        print("", end="")
     else:
         file_path = sys.argv[1]
         language = sys.argv[2] if len(sys.argv) > 2 else "en-US"
