@@ -4,7 +4,7 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "build": "bash ../render-build.sh",
+    "build": "bash ./render-build.sh",
     "postinstall": "node download-model.js",
     "start": "node download-model.js && node server.js"
   },
