@@ -9,17 +9,19 @@ RUN apt-get update && apt-get install -y \
 # Set work directory
 WORKDIR /app
 
-# Copy backend files
+# Copy backend (including transcribe.py and model scripts)
 COPY backend ./backend
 
-# Install Node dependencies
+# Set backend working directory
 WORKDIR /app/backend
+
+# Install Node dependencies
 RUN npm install
 
 # Install Python dependencies (vosk, numpy, soundfile)
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Download Vosk model during build (optional)
+# Download Vosk model during build
 RUN node download-model.js
 
 # Expose port (Render will use $PORT)
@@ -27,4 +29,3 @@ EXPOSE 5000
 
 # Start the app
 CMD ["npm", "start"]
-
