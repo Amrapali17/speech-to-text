@@ -27,7 +27,6 @@ function App() {
   const [history, setHistory] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showHistory, setShowHistory] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState("en-US");
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -36,13 +35,16 @@ function App() {
   const timerRef = useRef(null);
   const transcriberRef = useRef(null);
 
+  // API endpoint
+  const API_BASE = "https://speech-to-text-1-gt9q.onrender.com";
+
   useEffect(() => {
     fetchHistory();
   }, []);
 
   const fetchHistory = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/transcripts");
+      const res = await axios.get(`${API_BASE}/transcripts`);
       setHistory(res.data);
     } catch (err) {
       console.error("History fetch error:", err);
@@ -51,7 +53,7 @@ function App() {
 
   const fetchLatestTranscript = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/transcripts");
+      const res = await axios.get(`${API_BASE}/transcripts`);
       if (res.data && res.data.length > 0) {
         const latest = res.data[0];
         setTranscription(latest.transcription);
@@ -67,7 +69,7 @@ function App() {
 
   const deleteTranscript = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/transcripts/${id}`);
+      await axios.delete(`${API_BASE}/transcripts/${id}`);
       setHistory((prev) => prev.filter((t) => t.id !== id));
       showToast("Transcript deleted!", "success");
     } catch (err) {
@@ -103,10 +105,10 @@ function App() {
 
     const formData = new FormData();
     formData.append("audio", file);
-    formData.append("language", selectedLanguage);
+    formData.append("language", "en-US"); // Always English
 
     try {
-      const res = await axios.post("http://localhost:5000/upload", formData, {
+      const res = await axios.post(`${API_BASE}/upload`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
         onUploadProgress: (e) => {
           const p = Math.round((e.loaded * 100) / e.total);
@@ -173,7 +175,7 @@ function App() {
 
   const toggleLiveTranscription = () => {
     if (!("webkitSpeechRecognition" in window)) {
-      setError("Live transcription not supported (use Chrome).");
+      setError("Live transcription only works in Chrome.");
       return;
     }
 
@@ -187,7 +189,7 @@ function App() {
     const recognition = new window.webkitSpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = selectedLanguage;
+    recognition.lang = "en-US"; // Always English
 
     recognition.onresult = (event) => {
       let liveText = "";
@@ -288,14 +290,6 @@ function App() {
           >
             History
           </button>
-          <select
-            value={selectedLanguage}
-            onChange={(e) => setSelectedLanguage(e.target.value)}
-            className="border p-1 rounded"
-          >
-            <option value="en-US">English</option>
-            <option value="hi-IN">Hindi</option>
-          </select>
           <button
             onClick={() => setDarkMode(!darkMode)}
             className="p-2 rounded-full bg-gray-700 text-black hover:bg-gray-500 transition"
@@ -491,21 +485,20 @@ function App() {
                           darkMode ? "bg-gray-700" : "bg-gray-100"
                         }`}
                       >
-                        <p className="text-lg mb-2">{item.transcription}</p>
-                        <span className="text-sm text-gray-500 block">
-                          {new Date(item.created_at).toLocaleString()} •{" "}
-                          {item.language || "unknown"}
-                        </span>
                         <button
                           onClick={() => deleteTranscript(item.id)}
-                          className="absolute top-3 right-3 text-red-500 hover:text-red-700"
+                          className="absolute top-2 right-2 text-red-500 hover:text-red-700"
                         >
                           <FiTrash2 />
                         </button>
+                        <p className="text-sm">{item.transcription}</p>
+                        <small className="block text-gray-400 mt-2">
+                          {new Date(item.createdAt).toLocaleString()}
+                        </small>
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-500">No transcripts found.</p>
+                    <p className="text-gray-400">No transcripts found.</p>
                   )}
                 </div>
               </div>
