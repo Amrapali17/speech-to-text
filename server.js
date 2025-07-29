@@ -136,13 +136,14 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
 app.get('/transcripts', async (req, res) => {
   const { data, error } = await supabase
     .from('transcripts')
-    .select('*')
+    .select('id, transcription, language, created_at')
     .order('created_at', { ascending: false })
     .limit(10);
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
+
 
 // DELETE transcript by ID
 app.delete('/transcripts/:id', async (req, res) => {
