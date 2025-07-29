@@ -493,8 +493,11 @@ function App() {
                         </button>
                         <p className="text-sm">{item.transcription}</p>
                         <small className="block text-gray-400 mt-2">
-                          {new Date(item.createdAt).toLocaleString()}
-                        </small>
+  {item.created_at
+    ? new Date(item.created_at).toLocaleString()
+    : "No Date Available"}
+</small>
+
                       </div>
                     ))
                   ) : (
