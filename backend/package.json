@@ -4,8 +4,7 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "build": "bash ./render-build.sh",
-    "postinstall": "node download-model.js",
+    "postinstall": "apt-get update && apt-get install -y ffmpeg python3 python3-pip && pip3 install --no-cache-dir -r backend/requirements.txt && node download-model.js",
     "start": "node download-model.js && node server.js"
   },
   "dependencies": {
