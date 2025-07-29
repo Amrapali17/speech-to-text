@@ -1,17 +1,24 @@
-# Ignore dependencies
+# Node modules
 node_modules/
 
-# Ignore uploads (we don't want to push temporary files)
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# dotenv environment variables file
+.env
+
+# Uploads folder (to avoid committing large/uploaded audio files)
 uploads/
 
-# Ignore audio and subtitles
-*.wav
-*.zip
-*.txt
-*.srt
-*.vtt
-*.tsv
+# OS generated files
+.DS_Store
+Thumbs.db
 
-# Do NOT ignore models folder (we need it for deployment)
-# (Leave models tracked)
+# Optional: lock files (if you want to ignore them)
+package-lock.json
+yarn.lock
 

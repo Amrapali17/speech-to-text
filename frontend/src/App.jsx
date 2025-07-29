@@ -9,8 +9,9 @@ import {
   FiSun,
   FiX,
   FiCopy,
-  FiSearch,
+  FiSearch
 } from "react-icons/fi";
+import { motion, AnimatePresence } from "framer-motion";
 
 function App() {
   const [file, setFile] = useState(null);
@@ -26,7 +27,6 @@ function App() {
   const [history, setHistory] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showHistory, setShowHistory] = useState(false);
-  const [showConfirmDelete, setShowConfirmDelete] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState("en-US");
 
   const mediaRecorderRef = useRef(null);
@@ -36,32 +36,43 @@ function App() {
   const timerRef = useRef(null);
   const transcriberRef = useRef(null);
 
-  // Fetch transcripts history from backend
   useEffect(() => {
     fetchHistory();
   }, []);
 
   const fetchHistory = async () => {
     try {
-      const res = await axios.get("https://speech-to-text-tgh8.onrender.com/transcripts");
+      const res = await axios.get("http://localhost:5000/transcripts");
       setHistory(res.data);
     } catch (err) {
       console.error("History fetch error:", err);
     }
   };
 
-  const confirmDelete = (id) => setShowConfirmDelete(id);
-
-  const deleteTranscript = async () => {
-    const id = showConfirmDelete;
-    setShowConfirmDelete(null);
+  const fetchLatestTranscript = async () => {
     try {
-      await axios.delete(`https://speech-to-text-tgh8.onrender.com/transcripts/${id}`);
-      showToast("Transcript deleted!", "success");
-      fetchHistory();
+      const res = await axios.get("http://localhost:5000/transcripts");
+      if (res.data && res.data.length > 0) {
+        const latest = res.data[0];
+        setTranscription(latest.transcription);
+        showToast("Loaded latest transcript!", "success");
+      } else {
+        showToast("No transcripts found.", "error");
+      }
     } catch (err) {
-      console.error(err);
-      showToast("Failed to delete transcript", "error");
+      console.error("Latest transcript fetch error:", err);
+      showToast("Failed to fetch latest transcript.", "error");
+    }
+  };
+
+  const deleteTranscript = async (id) => {
+    try {
+      await axios.delete(`http://localhost:5000/transcripts/${id}`);
+      setHistory((prev) => prev.filter((t) => t.id !== id));
+      showToast("Transcript deleted!", "success");
+    } catch (err) {
+      console.error("Delete error:", err);
+      showToast("Failed to delete transcript.", "error");
     }
   };
 
@@ -95,7 +106,7 @@ function App() {
     formData.append("language", selectedLanguage);
 
     try {
-      const res = await axios.post("https://speech-to-text-tgh8.onrender.com/upload", formData, {
+      const res = await axios.post("http://localhost:5000/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
         onUploadProgress: (e) => {
           const p = Math.round((e.loaded * 100) / e.total);
@@ -105,10 +116,9 @@ function App() {
 
       const text = res.data.text || "No transcription found.";
       setTranscription(text);
-      showToast("Transcription completed!", "success");
-
-      // History reload (backend already saves it)
       fetchHistory();
+      fetchLatestTranscript();
+      showToast("Transcription completed!", "success");
     } catch (err) {
       console.error("Transcription error:", err);
       setError("Failed to transcribe audio.");
@@ -132,7 +142,9 @@ function App() {
       mediaRecorderRef.current.onstop = () => {
         clearInterval(timerRef.current);
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        const audioFile = new File([audioBlob], "recording.webm", { type: "audio/webm" });
+        const audioFile = new File([audioBlob], "recording.webm", {
+          type: "audio/webm",
+        });
         setFile(audioFile);
         setAudioURL(URL.createObjectURL(audioBlob));
       };
@@ -185,7 +197,8 @@ function App() {
       setTranscription(liveText);
     };
 
-    recognition.onerror = (e) => setError(`Speech recognition error: ${e.error}`);
+    recognition.onerror = (e) =>
+      setError(`Speech recognition error: ${e.error}`);
 
     recognition.start();
     recognitionRef.current = recognition;
@@ -253,11 +266,17 @@ function App() {
           darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-800"
         }`}
       >
-        <div className="text-2xl font-bold cursor-pointer" onClick={scrollToTranscriber}>
+        <div
+          className="text-2xl font-bold cursor-pointer"
+          onClick={scrollToTranscriber}
+        >
           🎤 Speech-to-Text
         </div>
         <div className="flex gap-6 items-center">
-          <button onClick={scrollToTranscriber} className="hover:text-blue-500 transition">
+          <button
+            onClick={scrollToTranscriber}
+            className="hover:text-blue-500 transition"
+          >
             Home
           </button>
           <button
@@ -286,7 +305,7 @@ function App() {
         </div>
       </nav>
 
-      {/* Toast Notifications */}
+      {/* Toasts */}
       <div className="fixed top-20 right-4 space-y-3 z-50">
         {toasts.map((toast) => (
           <div
@@ -304,16 +323,21 @@ function App() {
         ))}
       </div>
 
-      {/* Main Container */}
+      {/* Main Transcriber */}
       <div
         ref={transcriberRef}
         className="w-[85%] h-[85vh] rounded-3xl shadow-2xl border flex flex-col items-center p-10 relative"
-        style={{ backgroundColor: darkMode ? "#1f2937" : "#FFFFFF", borderColor: "#CDE9F6" }}
+        style={{
+          backgroundColor: darkMode ? "#1f2937" : "#FFFFFF",
+          borderColor: "#CDE9F6",
+        }}
       >
         {isRecording && (
           <div className="absolute top-6 right-6 flex items-center gap-2">
             <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse"></div>
-            <span className="text-lg font-semibold">Recording {formatTime(recordingTime)}</span>
+            <span className="text-lg font-semibold">
+              Recording {formatTime(recordingTime)}
+            </span>
           </div>
         )}
 
@@ -368,7 +392,10 @@ function App() {
 
         {loading && (
           <div className="w-2/3 h-4 bg-gray-300 rounded-full overflow-hidden mb-6">
-            <div className="h-full bg-green-500 transition-all" style={{ width: `${progress}%` }}></div>
+            <div
+              className="h-full bg-green-500 transition-all"
+              style={{ width: `${progress}%` }}
+            ></div>
           </div>
         )}
 
@@ -413,92 +440,79 @@ function App() {
       </div>
 
       {/* History Drawer */}
-      {showHistory && (
-        <>
-          <div
-            className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm z-40"
-            onClick={() => setShowHistory(false)}
-          ></div>
-          <div
-            className={`fixed top-0 right-0 h-full w-96 z-50 shadow-2xl border-l ${
-              darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-800"
-            }`}
-          >
-            <div className="flex justify-between items-center p-4 border-b">
-              <h2 className="text-xl font-bold">Past Transcriptions</h2>
-              <button
-                onClick={() => setShowHistory(false)}
-                className="text-red-500 hover:text-red-700 text-lg font-semibold"
-              >
-                <FiX />
-              </button>
-            </div>
-            <div className="p-4">
-              <div className="flex items-center gap-2 mb-4">
-                <FiSearch />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search transcripts..."
-                  className="flex-1 border p-2 rounded"
-                />
+      <AnimatePresence>
+        {showHistory && (
+          <>
+            <div
+              className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm z-40"
+              onClick={() => setShowHistory(false)}
+            ></div>
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 120, damping: 20 }}
+              className={`fixed top-0 right-0 h-full w-96 z-50 shadow-2xl border-l ${
+                darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-800"
+              }`}
+            >
+              <div className="flex justify-between items-center p-4 border-b">
+                <h2 className="text-xl font-bold">Past Transcriptions</h2>
+                <button
+                  onClick={() => setShowHistory(false)}
+                  className="text-red-500 hover:text-red-700 text-lg font-semibold"
+                >
+                  <FiX />
+                </button>
               </div>
-              <div className="flex-1 overflow-y-auto space-y-4 max-h-[70vh]">
-                {filteredHistory.length > 0 ? (
-                  filteredHistory.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`p-4 rounded-lg shadow-md flex justify-between items-start ${
-                        darkMode ? "bg-gray-700" : "bg-gray-100"
-                      }`}
-                    >
-                      <div>
-                        <p className="text-lg">{item.transcription}</p>
-                        <span className="text-sm text-gray-500">
+              <div className="p-4">
+                <button
+                  onClick={fetchLatestTranscript}
+                  className="mb-4 w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md"
+                >
+                  Show Last Transcript
+                </button>
+                <div className="flex items-center gap-2 mb-4">
+                  <FiSearch />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search transcripts..."
+                    className="flex-1 border p-2 rounded"
+                  />
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-4 max-h-[70vh]">
+                  {filteredHistory.length > 0 ? (
+                    filteredHistory.map((item) => (
+                      <div
+                        key={item.id}
+                        className={`p-4 rounded-lg shadow-md relative ${
+                          darkMode ? "bg-gray-700" : "bg-gray-100"
+                        }`}
+                      >
+                        <p className="text-lg mb-2">{item.transcription}</p>
+                        <span className="text-sm text-gray-500 block">
                           {new Date(item.created_at).toLocaleString()} •{" "}
                           {item.language || "unknown"}
                         </span>
+                        <button
+                          onClick={() => deleteTranscript(item.id)}
+                          className="absolute top-3 right-3 text-red-500 hover:text-red-700"
+                        >
+                          <FiTrash2 />
+                        </button>
                       </div>
-                      <button
-                        onClick={() => confirmDelete(item.id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <FiTrash2 />
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-500">No transcripts found.</p>
-                )}
+                    ))
+                  ) : (
+                    <p className="text-gray-500">No transcripts found.</p>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Confirm Delete Modal */}
-      {showConfirmDelete && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className={`p-6 rounded-lg shadow-lg ${darkMode ? "bg-gray-800" : "bg-white"}`}>
-            <h2 className="text-xl font-bold mb-4">Delete Transcript?</h2>
-            <div className="flex gap-4">
-              <button
-                onClick={deleteTranscript}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
-              >
-                Delete
-              </button>
-              <button
-                onClick={() => setShowConfirmDelete(null)}
-                className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
