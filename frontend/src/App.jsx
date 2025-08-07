@@ -97,25 +97,36 @@ function App() {
       setError("Please select or record audio first.");
       return;
     }
+  
+    // ✅ Optional: File size limit (20MB)
+    if (file.size > 20 * 1024 * 1024) {
+      setError("Audio file is too large. Please upload a file under 20MB.");
+      showToast("Audio file too large.", "error");
+      return;
+    }
+  
     setLoading(true);
     setProgress(0);
     setError("");
     setTranscription("");
     showToast("Transcription started...");
-
+  
     const formData = new FormData();
     formData.append("audio", file);
     formData.append("language", "en-US"); // Always English
-
+  
     try {
       const res = await axios.post(`${API_BASE}/upload`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        timeout: 60000, // ✅ Timeout set to 60 seconds
         onUploadProgress: (e) => {
           const p = Math.round((e.loaded * 100) / e.total);
           setProgress(p);
         },
       });
-
+  
       const text = res.data.text || "No transcription found.";
       setTranscription(text);
       fetchHistory();
@@ -129,7 +140,7 @@ function App() {
       setLoading(false);
     }
   };
-
+  
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
