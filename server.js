@@ -160,14 +160,22 @@ function cleanupFiles(...files) {
   });
 }
 
-async function pollTranscription(id) {
+async function pollTranscription(id, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
+    const start = Date.now();
+
     const interval = setInterval(async () => {
+      if (Date.now() - start > timeoutMs) {
+        clearInterval(interval);
+        return reject(new Error("Polling timed out after 60 seconds"));
+      }
+
       try {
         const res = await fetch(`${ASSEMBLYAI_TRANSCRIPT_URL}/${id}`, {
           headers: { authorization: ASSEMBLYAI_API_KEY },
         });
         const json = await res.json();
+
         if (json.status === 'completed') {
           clearInterval(interval);
           resolve(json.text);
